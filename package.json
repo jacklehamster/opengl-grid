@@ -1,6 +1,6 @@
 {
-  "name": "@dobuki/opengl-template",
-  "version": "1.0.12",
+  "name": "@dobuki/opengl-grid",
+  "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
   "type": "module",
@@ -10,14 +10,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jacklehamster/opengl-template.git"
+    "url": "git+https://github.com/jacklehamster/opengl-grid.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/jacklehamster/opengl-template/issues"
+    "url": "https://github.com/jacklehamster/opengl-grid/issues"
   },
-  "homepage": "https://github.com/jacklehamster/opengl-template#readme",
+  "homepage": "https://github.com/jacklehamster/opengl-grid#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },

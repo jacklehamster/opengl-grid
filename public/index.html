@@ -12,9 +12,12 @@
 
           const positionLocation = controller.getAttributeLocation("position");
           const positions = positionLocation >= 0 ? new Float32Array([
-              0.0, 0.5, 0.0,
-              -0.5, -0.5, 0.0,
-              0.5, -0.5, 0.0,
+              -.5, .5, 0.0,
+              -.5, -.5, 0.0,
+              .5, -.5, 0.0,
+              -.5, .5, 0.0,
+              .5, -.5, 0.0,
+              .5, .5, 0.0,
           ]) : undefined;
           const positionBuffer = positionLocation >= 0 ? gl.createBuffer() : undefined;
           if (positionLocation >= 0) {
@@ -23,53 +26,55 @@
             gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(positionLocation);
           }
-
-          const colorLocation = controller.getAttributeLocation("color");
-          const colors = colorLocation >= 0 ? new Float32Array([
-              1.0, 0.0, 0.0,
-              0.0, 1.0, 0.0,
-              0.0, 0.0, 1.0
+          const gridPositionLocation = controller.getAttributeLocation("gridPosition");
+          const gridPositionBuffer = gridPositionLocation >= 0 ? gl.createBuffer() : undefined;
+          const gridPositions = gridPositionLocation >= 0 ? new Float32Array([
+              0, 10,
+              0, 0,
+              10, 0,
+              0, 10,
+              10, 0,
+              10, 10,
           ]) : undefined;
-          const colorBuffer = colorLocation >= 0 ? gl.createBuffer() : undefined;
-          if (colorLocation >= 0) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);SubtleCrypto
-            gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-            gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(colorLocation);
+          if (gridPositionLocation >= 0) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, gridPositionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, gridPositions, gl.STATIC_DRAW);
+            gl.vertexAttribPointer(gridPositionLocation, 2, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(gridPositionLocation);
           }
 
-        return {triangleArray, positions, positionBuffer, colors, colorBuffer, positionLocation, colorLocation};
+        return {triangleArray, positions, positionBuffer, positionLocation, gridPositions, gridPositionBuffer, gridPositionLocation};
       }
 
-      function dispose(gl, {triangleArray, positions, positionBuffer, colors, colorBuffer, positionLocation, colorLocation}) {
+      function dispose(gl, {triangleArray, positions, positionBuffer, colors, colorBuffer, positionLocation, colorLocation, gridPositions, gridPositionBuffer, gridPositionLocation}) {
         gl.deleteVertexArray(triangleArray);
         delete positions;
-        delete colors;
         gl.deleteBuffer(positionBuffer);
-        gl.deleteBuffer(colorBuffer);
         if (positionLocation >= 0) {
           gl.disableVertexAttribArray(positionLocation);
         }
-        if (colorLocation >= 0) {
-          gl.disableVertexAttribArray(colorLocation);
+        delete gridPositions;
+        gl.deleteBuffer(gridPositionBuffer);
+        if (gridPositionLocation >= 0) {
+          gl.disableVertexAttribArray(gridPositionLocation);
         }
       }
 
       function staticRefresh(gl) {
         const resources = initialize(gl);
-        const {triangleArray, positions, positionBuffer, colors, colorBuffer} = resources;
+        const {triangleArray, positions } = resources;
         ////////////////
         // DRAW
         ////////////////
         gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.drawArrays(gl.TRIANGLES, 0, positions.length / 3);
 
         dispose(gl, resources);
       }
 
       function animatedRefresh(gl) {
         const resources = initialize(gl);
-        const {triangleArray, positions, positionBuffer, colors, colorBuffer} = resources;
+        const {triangleArray, positions, positionBuffer } = resources;
 
         ////////////////
         // DRAW
@@ -78,12 +83,14 @@
         const loop = (time) => {
           //  update position
           if (time) {
-            positions[0] = Math.sin(time / 100);
+            positions[0] = (Math.sin(time / 100)) / 2;
+            positions[9] = (Math.sin(time / 100)) / 2;
+            positions[15] = (2 + Math.sin(time / 100)) / 2;
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 
             gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.drawArrays(gl.TRIANGLES, 0, positions.length / 3);
           }
           id = requestAnimationFrame(loop);
         };
@@ -96,83 +103,64 @@
         };
       }
 
+      const vertex = `#version 300 es
+
+        precision highp float;
+        layout (location=0) in vec4 position;
+        layout (location=1) in vec2 gridPosition;
+
+        out vec2 vGridPosition;
+
+        void main() {
+            gl_Position = position;
+            vGridPosition = gridPosition;
+        }
+      `;
+
       const config = {
         showDebugInfo: true,
         programs: [
           {
-              id: "sample-multicolor",
-              vertex: 
-              `#version 300 es
-
-                precision highp float;
-                layout (location=0) in vec4 position;
-                layout (location=1) in vec3 color;
-                
-                out vec3 vColor;
-
-                void main() {
-                    vColor = color;
-                    gl_Position = position;
-                }
-              `,
+              id: "sample-grid-cell-1",
+              vertex,
               fragment:
               `#version 300 es
 
                 precision highp float;
-                in vec3 vColor;
                 out vec4 fragColor;
+                in vec2 vGridPosition;
 
                 void main() {
-                    fragColor = vec4(vColor, 1.0);
+                    float x = abs(fract(vGridPosition.x) - .5) * 2.;
+                    float y = abs(fract(vGridPosition.y) - .5) * 2.;
+                    float val = smoothstep(.95, 1., max(x, y));
+                    fragColor = vec4(0., 0., 1., val);
                 }
               `
             },
           {
-              id: "sample-red",
-              vertex: 
-              `#version 300 es
-
-                precision highp float;
-                in vec4 position;
-
-                void main() {
-                    gl_Position = position;
-                }
-              `,
+              id: "sample-grid-cell-.1",
+              vertex,
               fragment:
               `#version 300 es
 
                 precision highp float;
                 out vec4 fragColor;
+                in vec2 vGridPosition;
 
                 void main() {
-                    fragColor = vec4(0.5, 0.0, 0.0, 1.0);
+                    float x = abs(fract(vGridPosition.x * 10.) - .5) * 2.;
+                    float y = abs(fract(vGridPosition.y * 10.) - .5) * 2.;
+                    float val = smoothstep(.8, .95, max(x, y)) / 2.;
+
+                    float x2 = abs(fract(vGridPosition.x) - .5) * 2.;
+                    float y2 = abs(fract(vGridPosition.y) - .5) * 2.;
+                    float val2 = smoothstep(.95, 1., max(x2, y2));
+
+                    fragColor = vec4(val, 0, val2, max(val, val2));
                 }
               `
           },
-          {
-              id: "sample-blue",
-              vertex: 
-              `#version 300 es
-
-                precision highp float;
-                in vec4 position;
-
-                void main() {
-                    gl_Position = position;
-                }
-              `,
-              fragment:
-              `#version 300 es
-
-                precision highp float;
-                out vec4 fragColor;
-
-                void main() {
-                    fragColor = vec4(0.0, 0.0, 0.5, 1.0);
-                }
-              `
-            },
         ],
         onRefresh: staticRefresh,
       };
@@ -194,9 +182,8 @@
       <div>
         <label for="program">Program:</label>
         <select id="program" onchange="controller?.setActiveProgram(this.value)">
-          <option value="sample-multicolor" selected>Sample Multicolor</option>
-          <option value="sample-red">Sample Red</option>
-          <option value="sample-blue">Sample Blue</option>
+          <option value="sample-grid-cell-1" selected>Sample Grid cell</option>
+          <option value="sample-grid-cell-.1">Sample Grid cell decimal</option>
         </select>
       </div>
       <div>
@@ -219,8 +206,8 @@
         const descDiv = document.getElementById("description");
         const refreshValue = document.getElementById("refresh");
         descDiv.textContent = refreshValue.value === "static" ?
-          `Sample triangle.`
-          : `Sample animated triangle.`;
+          `Sample grid.`
+          : `Sample animated grid.`;
       }
       updateDescription();
     </script>
