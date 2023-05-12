@@ -6,179 +6,16 @@
     <script>
       const controller = {};
 
-      function initialize(gl, getAttributeLocation) {
-        const triangleArray = gl.createVertexArray();
-          gl.bindVertexArray(triangleArray);
-
-          const positionLocation = getAttributeLocation("position");
-          const positions = positionLocation >= 0 ? new Float32Array([
-              -.5, .5, 0.0,
-              -.5, -.5, 0.0,
-              .5, -.5, 0.0,
-              -.5, .5, 0.0,
-              .5, -.5, 0.0,
-              .5, .5, 0.0,
-          ]) : undefined;
-          const positionBuffer = positionLocation >= 0 ? gl.createBuffer() : undefined;
-          if (positionLocation >= 0) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-            gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(positionLocation);
-          }
-          const gridPositionLocation = getAttributeLocation("gridPosition");
-          const gridPositionBuffer = gridPositionLocation >= 0 ? gl.createBuffer() : undefined;
-          const gridPositions = gridPositionLocation >= 0 ? new Float32Array([
-              0, 10,
-              0, 0,
-              10, 0,
-              0, 10,
-              10, 0,
-              10, 10,
-          ]) : undefined;
-          if (gridPositionLocation >= 0) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, gridPositionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, gridPositions, gl.STATIC_DRAW);
-            gl.vertexAttribPointer(gridPositionLocation, 2, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(gridPositionLocation);
-          }
-
-        return {triangleArray, positions, positionBuffer, positionLocation, gridPositions, gridPositionBuffer, gridPositionLocation};
-      }
-
-      function dispose(gl, {triangleArray, positions, positionBuffer, colors, colorBuffer, positionLocation, colorLocation, gridPositions, gridPositionBuffer, gridPositionLocation}) {
-        gl.deleteVertexArray(triangleArray);
-        delete positions;
-        gl.deleteBuffer(positionBuffer);
-        if (positionLocation >= 0) {
-          gl.disableVertexAttribArray(positionLocation);
-        }
-        delete gridPositions;
-        gl.deleteBuffer(gridPositionBuffer);
-        if (gridPositionLocation >= 0) {
-          gl.disableVertexAttribArray(gridPositionLocation);
-        }
-      }
-
-      function staticRefresh({gl, getAttributeLocation}) {
-        const resources = initialize(gl, getAttributeLocation);
-        const {triangleArray, positions } = resources;
-        ////////////////
-        // DRAW
-        ////////////////
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, positions.length / 3);
-
-        dispose(gl, resources);
-      }
-
-      function animatedRefresh({gl, getAttributeLocation}) {
-        const resources = initialize(gl, getAttributeLocation);
-        const {triangleArray, positions, positionBuffer } = resources;
-
-        ////////////////
-        // DRAW
-        ////////////////
-        let id;
-        const loop = (time) => {
-          //  update position
-          if (time) {
-            positions[0] = (Math.sin(time / 100)) / 2;
-            positions[9] = (Math.sin(time / 100)) / 2;
-            positions[15] = (2 + Math.sin(time / 100)) / 2;
-            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLES, 0, positions.length / 3);
-          }
-          id = requestAnimationFrame(loop);
-        };
-
-        loop(0);
-
-        return () => {
-          dispose(gl, resources);
-          cancelAnimationFrame(id);
-        };
-      }
-
-      const vertex = `#version 300 es
-
-        precision highp float;
-        layout (location=0) in vec4 position;
-        layout (location=1) in vec2 gridPosition;
-
-        out vec2 vGridPosition;
-
-        void main() {
-            gl_Position = position;
-            vGridPosition = gridPosition;
-        }
-      `;
-
-      const config = {
-        showDebugInfo: true,
-        programs: [
-          {
-              id: "sample-grid-cell-1",
-              vertex,
-              fragment:
-              `#version 300 es
-
-                precision highp float;
-                out vec4 fragColor;
-                in vec2 vGridPosition;
-
-                void main() {
-                    float x = abs(fract(vGridPosition.x) - .5) * 2.;
-                    float y = abs(fract(vGridPosition.y) - .5) * 2.;
-                    float val = smoothstep(.95, 1., max(x, y));
-                    fragColor = vec4(0., 0., 1., val);
-                }
-              `
-            },
-          {
-              id: "sample-grid-cell-.1",
-              vertex,
-              fragment:
-              `#version 300 es
-
-                precision highp float;
-                out vec4 fragColor;
-                in vec2 vGridPosition;
-
-                void main() {
-                    float x = abs(fract(vGridPosition.x * 10.) - .5) * 2.;
-                    float y = abs(fract(vGridPosition.y * 10.) - .5) * 2.;
-                    float val = smoothstep(.8, .95, max(x, y)) / 2.;
-
-                    float x2 = abs(fract(vGridPosition.x) - .5) * 2.;
-                    float y2 = abs(fract(vGridPosition.y) - .5) * 2.;
-                    float val2 = smoothstep(.95, 1., max(x2, y2));
-
-                    fragColor = vec4(val, 0, val2, max(val, val2));
-                }
-              `
-          },
-        ],
-        onChange: staticRefresh,
-      };
-
       document.addEventListener("DOMContentLoaded", () => {
         const div = document.getElementById("root");
         div.style.border = "2px solid red";
-        exports.hookupCanvas(div, config, controller);
+        exports.hookupApp(div, controller);
       });
     </script>
     <title>Demo</title>
 	</head>
 	<body>
     <div style="display: flex; flex-direction: row; position: absolute;">
-      <div>
-        <label for="active">Active:</label>
-        <input id="active" type="checkbox" onChange="controller?.setActive(this.checked)" checked>    
-      </div>
       <div>
         <label for="program">Program:</label>
         <select id="program" onchange="controller?.setActiveProgram(this.value)">
@@ -188,7 +25,7 @@
       </div>
       <div>
         <label for="refresh">Refresh:</label>
-        <select id="refresh" onchange="controller?.setOnChange(this.value === 'static' ? staticRefresh : animatedRefresh); updateDescription()">
+        <select id="refresh" onchange="controller?.setLoopActions(this.value === 'static' ? undefined : 'animate'); updateDescription()">
           <option value="static" selected>static</option>
           <option value="animated">animated</option>
         </select>
